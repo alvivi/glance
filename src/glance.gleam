@@ -1580,7 +1580,15 @@ fn handle_bit_array_size_operator(
 }
 
 fn string_offset(start: Int, string: String) -> Int {
-  start + string.byte_size(string)
+  start + string_length(string)
+}
+
+// The length of a string in the units glexer counts positions in: bytes on
+// Erlang, and UTF-16 code units on JavaScript. A span's end is a glexer
+// position plus a length, so both must use the same units.
+@external(javascript, "./glance_ffi.mjs", "string_length")
+fn string_length(string: String) -> Int {
+  string.byte_size(string)
 }
 
 fn after_expression(

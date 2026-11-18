@@ -1,8 +1,11 @@
 import birdie
 import glance
+import gleam/list
 import gleam/string
 import gleeunit
 import gleeunit/should
+import glexer
+import glexer/token
 import pprint
 import simplifile
 
@@ -844,6 +847,34 @@ pub fn string_pattern_test() {
   "pub fn main() { let \"123\" = 1 }"
   |> to_snapshot
   |> birdie.snap(title: "string_pattern")
+}
+
+// A string literal's span ends in the units of glexer's positions, even when
+// the string holds characters whose byte and UTF-16 sizes differ.
+pub fn non_ascii_string_location_test() {
+  let src = "pub fn main() { \"é🙂\" }"
+  let assert Ok(glance.Module(functions: [function], ..)) = glance.module(src)
+  let assert [glance.Expression(glance.String(location:, ..))] =
+    function.definition.body
+  location.end
+  |> should.equal(position_of(src, token.RightBrace) - 1)
+}
+
+pub fn non_ascii_string_pattern_location_test() {
+  let src = "pub fn main() { let \"é🙂\" = 1 }"
+  let assert Ok(glance.Module(functions: [function], ..)) = glance.module(src)
+  let assert [glance.Assignment(pattern:, ..)] = function.definition.body
+  pattern.location.end
+  |> should.equal(position_of(src, token.Equal) - 1)
+}
+
+// The position glexer gives the first `wanted` token in `src`.
+fn position_of(src: String, wanted: token.Token) -> Int {
+  let assert Ok(#(_, glexer.Position(byte_offset:))) =
+    glexer.new(src)
+    |> glexer.lex
+    |> list.find(fn(pair) { pair.0 == wanted })
+  byte_offset
 }
 
 pub fn discard_pattern_test() {
